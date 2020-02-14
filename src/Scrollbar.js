@@ -1,5 +1,5 @@
 /**
- * Owl Carousel JSON load plugin
+ * Owl Carousel Scrollbar plugin
  * @author Mahbub Alam <makjoybd@gmail.com>
  * @since 2.0.0
  */
@@ -7,8 +7,6 @@
 ; (function ($, window, document, undefined) {
 
     "use strict";
-
-    var Instance = undefined;
 
     var o = {};
 
@@ -18,17 +16,6 @@
     var scrollbarClass = "owl-scrollbar";
     var draggingClass = "owl-scroll-handle-dragging";
     var draggedClass = "owl-scroll-handle-dragged";
-
-    var $handle = $("<div>").addClass(handleClass);
-    var $progressBar = $("<div>").addClass(progressBarClass);
-    var $scrollbar = $("<div>").addClass(scrollbarClass).append($handle);
-
-    var sbStyles = new StyleRestorer($scrollbar[0]);
-    var handleStyles = new StyleRestorer($handle[0]);
-    var progressStyles = new StyleRestorer($progressBar[0]);
-
-    var sbSize = 0;
-    var progressSize = 0;
 
     var dragInitEvents = 'touchstart.' + namespace + ' mousedown.' + namespace;
     var dragMouseEvents = 'mousemove.' + namespace + ' mouseup.' + namespace;
@@ -41,24 +28,12 @@
     var holderProps = ['overflow', 'position'];
     var movableProps = ['position', 'webkitTransform', 'msTransform', 'transform', 'left', 'top', 'width', 'height'];
 
-    var count = 0;
-    var visible = 0;
-    var ratio = 1;
-    var animationSpeed = 0;
-
     var dragging = {
         released: 1,
         init: 0
     };
 
     var transform, gpuAcceleration;
-
-    var hPos = {
-        start: 0,
-        end: 0,
-        cur: 0,
-        index: 0
-    };
 
     // Math shorthands
     var abs = Math.abs;
@@ -96,9 +71,14 @@
         this.options = {};
 
         this._handlers = {
-            'initialized.owl.carousel refreshed.owl.carousel resized.owl.carousel': $.proxy(function (e) {
+            'initialized.owl.carousel': $.proxy(function (e) {
                 if (e.namespace && this._core.settings.scrollbarType) {
                     initialize.call(this, e);
+                }
+            }, this),
+            'refreshed.owl.carousel resized.owl.carousel': $.proxy(function (e) {
+                if (e.namespace && this._core.settings.scrollbarType) {
+                    update.call(this, e);
                 }
             }, this),
             "translate.owl.carousel": $.proxy(function (e) {
@@ -119,12 +99,37 @@
             }, this)
         }
 
-        Instance = this._core = carousel;
+        this.handle = $('<div>').addClass(handleClass);
+        this.progressBar = $('<div>').addClass(progressBarClass);
+        this.scrollBar = $('<div>').addClass(scrollbarClass).append($(this.handle));
+
+        this.sbStyles = new StyleRestorer(this.scrollBar);
+        this.handleStyles = new StyleRestorer(this.handle);
+        this.progressStyles = new StyleRestorer(this.progressBar);
+
+        this.sbSize = 0;
+        this.progressSize = 0;
+        this.handleSize = 100;
+
+        this.count = 0;
+        this.visible = 0;
+        this.ratio = 1;
+        this.animationSpeed = 0;
+
+        this.hPos = {
+            start: 0,
+            end: 0,
+            cur: 0,
+            index: 0
+        };
+
+        this.Instance = this._core = carousel;
         this.options = $.extend(Scrollbar.Defaults, this._core.options);
         this._core.$element.on(this._handlers);
 
-        o = this.options;
+        this._dragHandler;
 
+        o = this.options;
     }
 
     Scrollbar.Defaults = {
@@ -146,7 +151,7 @@
             stopDefault(event);
         }
 
-        unsetTransitionAnimation();
+        unsetTransitionAnimation.call(this, event);
 
         dragging.released = 0;
         dragging.init = 0;
@@ -160,9 +165,13 @@
         dragging.locked = 0;
         dragging.pathToLock = 0;
 
-        $(document).on(isTouch ? dragTouchEvents : dragMouseEvents, dragHandler);
+        var obj = this;
+        this._dragHandler = function (e) {
+            dragHandler.call(obj, e);
+        }
+        $(document).on(isTouch ? dragTouchEvents : dragMouseEvents, this._dragHandler);
 
-        $handle.addClass(draggedClass);
+        $(this.handle).addClass(draggedClass);
 
     }
 
@@ -179,7 +188,7 @@
         dragging.pathX = dragging.pointer.pageX - dragging.initX;
         dragging.pathY = dragging.pointer.pageY - dragging.initY;
         dragging.path = sqrt(pow(dragging.pathX, 2) + pow(dragging.pathY, 2));
-        dragging.delta = dragging.pathX + hPos.cur;
+        dragging.delta = dragging.pathX + this.hPos.cur;
 
         var current = 0;
 
@@ -191,7 +200,7 @@
             if (dragging.path < o.scrollDragThreshold) {
                 // If the pointer was released, the path will not become longer and it's
                 // definitely not a drag. If not released yet, decide on next iteration
-                return dragging.released ? dragEnd() : undefined;
+                return dragging.released ? dragEnd.call(this) : undefined;
             }
             else {
                 // If dragging path is sufficiently long we can confidently start a drag
@@ -199,51 +208,47 @@
                 if (abs(dragging.pathX) > abs(dragging.pathY)) {
                     dragging.init = 1;
                 } else {
-                    return dragEnd();
+                    return dragEnd.call(this);
                 }
             }
         }
 
         stopDefault(event);
 
-        if (!dragging.locked && dragging.path > dragging.pathToLock && dragging.slidee) {
+        if (!dragging.locked && dragging.path > dragging.pathToLock) {
             dragging.locked = 1;
             dragging.$source.on(clickEvent, disableOneEvent);
         }
 
         if (dragging.released) {
-            dragEnd();
+            dragEnd.call(this);
         }
 
         switch (o.scrollbarType) {
-
             case "scroll":
-
-                current = within(dragging.delta, hPos.start, hPos.end);
-
+                current = within(dragging.delta, this.hPos.start, this.hPos.end);
                 if (transform) {
-                    $handle[0].style[transform] = gpuAcceleration + 'translateX' + '(' + current + 'px)';
+                    $(this.handle).css('transform', gpuAcceleration + 'translateX' + '(' + current + 'px)');
                 } else {
-                    $handle[0].style['left'] = current + 'px';
+                    $(this.handle).css('left', current + 'px');
                 }
 
                 break;
             case "progress":
-
-                current = within(dragging.delta, hPos.start, hPos.end);
-                $progressBar[0].style["width"] = current + "px";
-                $handle[0].style['left'] = current + 'px';
+                current = within(dragging.delta, this.hPos.start, this.hPos.end);
+                $(this.progressBar).css('width', current + 'px');
+                $(this.handle).css('left', current + 'px');
                 break;
         }
 
         dragging.current = current;
 
-        var index = round(dragging.current / ratio);
+        var index = round(dragging.current / this.ratio);
 
-        if (index != hPos.index) {
+        if (index != this.hPos.index) {
 
-            hPos.index = index;
-            Instance.$element.trigger("to.owl.carousel", [index, animationSpeed, true]);
+            this.hPos.index = index;
+            this.Instance.$element.trigger("to.owl.carousel", [index, this.animationSpeed, true]);
         }
 
 
@@ -256,16 +261,16 @@
      * @return {Void}
      */
     function dragEnd() {
-
         dragging.released = true;
-        $(document).off(dragging.touch ? dragTouchEvents : dragMouseEvents, dragHandler);
-        $handle.removeClass(draggedClass);
+        $(document).off(dragging.touch ? dragTouchEvents : dragMouseEvents, this._dragHandler);
+        
+        $(this.handle).removeClass(draggedClass);
 
         setTimeout(function () {
             dragging.$source.off(clickEvent, disableOneEvent);
         });
 
-        hPos.cur = dragging.current;
+        this.hPos.cur = dragging.current;
 
         dragging.init = 0;
     }
@@ -359,16 +364,16 @@
     function calculateCurrentPosition() {
 
         var position = 0;
-        var index = Instance.relative(Instance.current());
+        var index = this.Instance.relative(this.Instance.current());
 
         if (index === 0) {
             position = 0;
         }
-        else if (index < count - visible) {
-            position = (ratio * index);
+        else if (index < this.count - this.visible) {
+            position = (this.ratio * index);
         }
         else {
-            position = sbSize - progressSize;
+            position = this.sbSize - this.progressSize;
         }
 
         return position;
@@ -383,32 +388,32 @@
 
         var size = 0;
 
-        var index = Instance.relative(Instance.current());
+        var index = this.Instance.relative(this.Instance.current());
 
-        if (index < count - visible) {
-            size = ratio * index;
+        if (index < this.count - this.visible) {
+            size = this.ratio * index;
         }
         else {
-            size = sbSize;
+            size = this.sbSize;
         }
 
         return size;
     }
 
-    function setTransitionAnimation() {
-        $handle.css({
-            "transition": "all " + (animationSpeed / 1000) + "s ease-in-out"
+    function setTransitionAnimation(event) {
+        $(this.handle).css({
+            "transition": "all " + (this.animationSpeed / 1000) + "s ease-in-out"
         });
-        $progressBar.css({
-            "transition": "all " + (animationSpeed / 1000) + "s ease-in-out"
+        $(this.handle).css({
+            "transition": "all " + (this.animationSpeed / 1000) + "s ease-in-out"
         });
     }
 
-    function unsetTransitionAnimation() {
-        $handle.css({
+    function unsetTransitionAnimation(event) {
+        $(this.handle).css({
             "transition": ""
         });
-        $progressBar.css({
+        $(this.progressBar).css({
             "transition": ""
         });
     }
@@ -430,46 +435,46 @@
 
         var $element = this._core.$element;
 
-        $element.append($scrollbar);
+        $element.append($(this.scrollBar));
 
-        $handle.css({
-            cursor: "pointer",
+        $(this.handle).css({
+            cursor: 'pointer',
         });
 
-        sbStyles.save.apply(sbStyles, holderProps);
+        this.sbStyles.save.apply(this.sbStyles, holderProps);
 
-        $handle.on(dragInitEvents, { source: handleClass }, dragInit);
+        var obj = this;
+        $(this.handle).on(dragInitEvents, { source: handleClass }, function (e) {
+            dragInit.call(obj, e);
+        });
+        this.sbSize = $(this.scrollBar).outerWidth();
 
-        sbSize = $scrollbar.width();
+        this.count = event.item.count;
+        this.visible = event.page.size;
+        this.ratio = this.sbSize / (this.count - this.visible + 1);
+        this.animationSpeed = this._core.options.smartSpeed;
 
-        count = event.item.count;
-        visible = event.page.size;
-        ratio = sbSize / (count - visible + 1);
-        animationSpeed = this._core.options.smartSpeed;
-
-        hPos.start = 0;
-        hPos.cur = 0;
+        this.hPos.start = 0;
+        this.hPos.cur = 0;
 
         if (o.scrollbarType === "progress") {
 
-            $scrollbar.prepend($progressBar);
+            $(this.scrollBar).prepend($(this.progressBar));
 
-            progressSize = calculateCurrentSize(event.item.index);
+            this.progressSize = calculateCurrentSize.call(this, event.item.index);
 
-            var handleSize = $handle.width();
+            this.handleSize = $(this.handle).outerWidth();
 
-            progressStyles.save.apply(handleStyles, movableProps);
+            this.progressStyles.save.apply(this.handleStyles, movableProps);
 
-            $progressBar.width(progressSize);
+            $(this.progressBar).width(this.progressSize);
         }
         else {
-            var handleSize = 100;
-            handleStyles.save.apply(handleStyles, movableProps);
-            $handle.width(handleSize);
+            this.handleStyles.save.apply(this.handleStyles, movableProps);
+            $(this.handle).width(this.handleSize);
         }
 
-        hPos.end = sbSize - handleSize;
-
+        this.hPos.end = this.sbSize - this.handleSize;
         this.initialized = true;
     }
 
@@ -483,33 +488,33 @@
      * @param {Event} event 
      */
     function sync(event) {
-        if ($handle.length && dragging.init === 0) {
+        if (this.handle.length && dragging.init === 0) {
 
-            setTransitionAnimation();
+            setTransitionAnimation.call(this);
 
             switch (o.scrollbarType) {
 
                 case "scroll":
 
-                    var current = calculateCurrentPosition();
+                    var current = calculateCurrentPosition.call(this);
 
-                    hPos.cur = current;
+                    this.hPos.cur = current;
 
                     if (transform) {
-                        $handle[0].style[transform] = gpuAcceleration + 'translateX' + '(' + current + 'px)';
+                        $(this.handle).css('transform', gpuAcceleration + 'translateX' + '(' + current + 'px)');
                     } else {
-                        $handle[0].style['left'] = current + 'px';
+                        $(this.handle).css('left', current + 'px');
                     }
 
                     break;
                 case "progress":
 
-                    var current = calculateCurrentSize();
+                    var current = calculateCurrentSize.call(this);
 
-                    hPos.cur = current;
+                    this.hPos.cur = current;
 
-                    $progressBar[0].style["width"] = current + "px";
-                    $handle[0].style['left'] = current + 'px';
+                    $(this.progressBar).css('width', current + "px");
+                    $(this.handle).css('left', current + 'px');
 
                     break;
             }
@@ -517,6 +522,28 @@
 
     }
 
+    /**
+     * Recalculates scrollbar dimensions on resize or refresh
+     * 
+     * @param {Event} event
+     * */
+    function update(event) {
+        this.sbSize = $(this.scrollBar).outerWidth();
+        this.count = event.item.count;
+        this.visible = event.page.size;
+        this.ratio = this.sbSize / (this.count - this.visible + 1);
+        this.animationSpeed = this._core.options.smartSpeed;
+
+        if (o.scrollbarType === "progress") {
+            this.progressSize = calculateCurrentSize.call(this, event.item.index);
+            this.handleSize = $(this.handle).outerWidth();
+            $(this.progressBar).width(this.progressSize);
+        }
+        else {
+            $(this.handle).width(this.handleSize);
+        }
+        this.hPos.end = this.sbSize - this.handleSize;
+    }
     Scrollbar.prototype.destroy = function () {
         var handler, property;
 
