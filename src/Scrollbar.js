@@ -1,5 +1,5 @@
 /**
- * Owl Carousel Scrollbar plugin
+ * Owl Carousel JSON load plugin
  * @author Mahbub Alam <makjoybd@gmail.com>
  * @since 2.0.0
  */
@@ -7,8 +7,6 @@
 ; (function ($, window, document, undefined) {
 
     "use strict";
-
-    var o = {};
 
     var namespace = "scrollbar";
     var handleClass = "owl-scroll-handle";
@@ -68,8 +66,6 @@
 
         this._core = carousel;
 
-        this.options = {};
-
         this._handlers = {
             'initialized.owl.carousel': $.proxy(function (e) {
                 if (e.namespace && this._core.settings.scrollbarType) {
@@ -124,12 +120,9 @@
         };
 
         this.Instance = this._core = carousel;
-        this.options = $.extend(Scrollbar.Defaults, this._core.options);
         this._core.$element.on(this._handlers);
 
         this._dragHandler;
-
-        o = this.options;
     }
 
     Scrollbar.Defaults = {
@@ -197,7 +190,7 @@
         // We haven't decided whether this is a drag or not...
         if (!dragging.init) {
             // If the drag path was very short, maybe it's not a drag?
-            if (dragging.path < o.scrollDragThreshold) {
+            if (dragging.path < this._core.options.scrollDragThreshold) {
                 // If the pointer was released, the path will not become longer and it's
                 // definitely not a drag. If not released yet, decide on next iteration
                 return dragging.released ? dragEnd.call(this) : undefined;
@@ -224,7 +217,7 @@
             dragEnd.call(this);
         }
 
-        switch (o.scrollbarType) {
+        switch (this._core.options.scrollbarType) {
             case "scroll":
                 current = within(dragging.delta, this.hPos.start, this.hPos.end);
                 if (transform) {
@@ -457,7 +450,7 @@
         this.hPos.start = 0;
         this.hPos.cur = 0;
 
-        if (o.scrollbarType === "progress") {
+        if (this._core.options.scrollbarType === "progress") {
 
             $(this.scrollBar).prepend($(this.progressBar));
 
@@ -492,7 +485,7 @@
 
             setTransitionAnimation.call(this);
 
-            switch (o.scrollbarType) {
+            switch (this._core.options.scrollbarType) {
 
                 case "scroll":
 
@@ -534,7 +527,7 @@
         this.ratio = this.sbSize / (this.count - this.visible + 1);
         this.animationSpeed = this._core.options.smartSpeed;
 
-        if (o.scrollbarType === "progress") {
+        if (this._core.options.scrollbarType === "progress") {
             this.progressSize = calculateCurrentSize.call(this, event.item.index);
             this.handleSize = $(this.handle).outerWidth();
             $(this.progressBar).width(this.progressSize);
