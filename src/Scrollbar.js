@@ -366,7 +366,12 @@
             position = (this.ratio * index);
         }
         else {
-            position = this.sbSize - this.progressSize;
+            if (this._core.options.scrollbarType == 'progress') {
+                position = this.sbSize - this.progressSize;
+            }
+            if (this._core.options.scrollbarType == 'scroll') {
+                position = this.sbSize - this.handleSize;
+            }
         }
 
         return position;
