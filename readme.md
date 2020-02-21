@@ -1,6 +1,6 @@
 ## Owl Carousel Scrollbar Plugin
 
-This is a simple plugin to setup scrollbar for owl carousel 2 slider. Scrollbar can be of two types: 1) Progress bar and 2) Simple Scroll bar. Dragging the handle will move the slides accordingly.
+This is a simple plugin to setup scrollbar for owl carousel slider. Scrollbar can be of two types: 1) Progress bar and 2) Simple Scroll bar. Dragging the handle will move the slides accordingly.
 
 ## How to use?
 
