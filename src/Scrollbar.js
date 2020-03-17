@@ -165,6 +165,7 @@
         $(document).on(isTouch ? dragTouchEvents : dragMouseEvents, this._dragHandler);
 
         $(this.handle).addClass(draggedClass);
+        $('body').css('cursor', 'grabbing');
 
     }
 
@@ -258,6 +259,7 @@
         $(document).off(dragging.touch ? dragTouchEvents : dragMouseEvents, this._dragHandler);
         
         $(this.handle).removeClass(draggedClass);
+        $('body').css('cursor', '');
 
         setTimeout(function () {
             dragging.$source.off(clickEvent, disableOneEvent);
@@ -436,7 +438,7 @@
         $element.append($(this.scrollBar));
 
         $(this.handle).css({
-            cursor: 'pointer',
+            cursor: 'grab',
         });
 
         this.sbStyles.save.apply(this.sbStyles, holderProps);
@@ -551,6 +553,7 @@
         for (property in Object.getOwnPropertyNames(this)) {
             typeof this[property] != 'function' && (this[property] = null);
         }
+        $(this.scrollBar).remove();
     };
 
     $.fn.owlCarousel.Constructor.Plugins['Scrollbar'] = Scrollbar;
