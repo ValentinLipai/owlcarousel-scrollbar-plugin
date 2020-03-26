@@ -79,7 +79,9 @@
             }, this),
             "translate.owl.carousel": $.proxy(function (e) {
                 if (e.namespace && this._core.settings.scrollbarType) {
-                    sync.call(this, e);
+                    if (dragging.init == 0) {
+                        sync.call(this, e);
+                    }
                 }
             }, this),
             "drag.owl.carousel": $.proxy(function (e) {
@@ -127,7 +129,7 @@
 
     Scrollbar.Defaults = {
         scrollbarType: 'scroll',
-        scrollDragThreshold: 3,
+        scrollDragThreshold: 30,
         scrollbarHandleSize: 10
     }
 
@@ -216,36 +218,35 @@
 
         if (dragging.released) {
             dragEnd.call(this);
-        }
+        } else {
+            switch (this._core.options.scrollbarType) {
+                case "scroll":
+                    current = within(dragging.delta, this.hPos.start, this.hPos.end);
+                    if (transform) {
+                        $(this.handle).css('transform', gpuAcceleration + 'translateX' + '(' + current + 'px)');
+                    } else {
+                        $(this.handle).css('left', current + 'px');
+                    }
 
-        switch (this._core.options.scrollbarType) {
-            case "scroll":
-                current = within(dragging.delta, this.hPos.start, this.hPos.end);
-                if (transform) {
-                    $(this.handle).css('transform', gpuAcceleration + 'translateX' + '(' + current + 'px)');
-                } else {
+                    break;
+                case "progress":
+                    current = within(dragging.delta, this.hPos.start, this.hPos.end);
+                    $(this.progressBar).addClass('notransition');
+                    $(this.progressBar).css('width', current + 'px');
                     $(this.handle).css('left', current + 'px');
-                }
+                    break;
+            }
 
-                break;
-            case "progress":
-                current = within(dragging.delta, this.hPos.start, this.hPos.end);
-                $(this.progressBar).css('width', current + 'px');
-                $(this.handle).css('left', current + 'px');
-                break;
+            dragging.current = current;
+
+            var index = round(dragging.current / this.ratio);
+
+            if (index != this.hPos.index) {
+
+                this.hPos.index = index;
+                this.Instance.$element.trigger("to.owl.carousel", [index, this.animationSpeed, true]);
+            }
         }
-
-        dragging.current = current;
-
-        var index = round(dragging.current / this.ratio);
-
-        if (index != this.hPos.index) {
-
-            this.hPos.index = index;
-            this.Instance.$element.trigger("to.owl.carousel", [index, this.animationSpeed, true]);
-        }
-
-
 
     }
 
@@ -257,7 +258,7 @@
     function dragEnd() {
         dragging.released = true;
         $(document).off(dragging.touch ? dragTouchEvents : dragMouseEvents, this._dragHandler);
-        
+
         $(this.handle).removeClass(draggedClass);
         $('body').css('cursor', '');
 
@@ -265,6 +266,7 @@
             dragging.$source.off(clickEvent, disableOneEvent);
         });
 
+        $(this.progressBar).removeClass('notransition');
         this.hPos.cur = dragging.current;
 
         dragging.init = 0;
@@ -437,6 +439,10 @@
 
         $element.append($(this.scrollBar));
 
+        if (this._core.settings.scrollbarContainer) {
+            $(this._core.settings.scrollbarContainer).append($(this.scrollBar));
+        }
+
         $(this.handle).css({
             cursor: 'grab',
         });
@@ -488,8 +494,7 @@
      * @param {Event} event 
      */
     function sync(event) {
-        if (this.handle.length && dragging.init === 0) {
-
+        if (this.handle.length) {
             setTransitionAnimation.call(this);
 
             switch (this._core.options.scrollbarType) {
@@ -514,6 +519,9 @@
                     this.hPos.cur = current;
 
                     $(this.progressBar).css('width', current + "px");
+                    if (current >= this.hPos.end) {
+                        current = current - this.handleSize;
+                    }
                     $(this.handle).css('left', current + 'px');
 
                     break;
